@@ -33,3 +33,7 @@
 
 # Output
 src/build/*
+
+
+# CMake User File
+*.user
