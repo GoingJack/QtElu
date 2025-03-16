@@ -34,6 +34,7 @@ class Willump : public QObject {
 
  signals:
   void onPortAuthReady();
+  void onMessage(QString info);
 
  private slots:
   void handleDealWebSocketReceived(const QString& text);

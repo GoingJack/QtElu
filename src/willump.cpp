@@ -162,6 +162,7 @@ void Willump::handleDealWebSocketReceived(const QString& text) {
       auto received_map = list[2].toMap();
       auto phase = list[2].toMap()["data"].toMap()["phase"].toString();
       qDebug() << "current phase: " << phase;
+      emit onMessage("current phase: " + phase);
       if (phase == "ReadyCheck") {
         qDebug() << " start check game!!!";
         start("post", "/lol-matchmaking/v1/ready-check/accept",
