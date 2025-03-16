@@ -33,6 +33,9 @@ MainWindow::MainWindow(QWidget* parent)
 MainWindow::~MainWindow() {
   delete ui;
 
+  // Cleanup Willump before thread shutdown
+  QMetaObject::invokeMethod(&GetWillumpService(), "cleanup", Qt::BlockingQueuedConnection);
+  
   lcu_service_thread_.quit();
   lcu_service_thread_.wait();
 }

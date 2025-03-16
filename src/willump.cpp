@@ -240,6 +240,19 @@ QVariant Willump::convertStringToVariantMap(const QByteArray& json_string) {
   }
 }
 
+void Willump::cleanup() {
+    if (wsClient) {
+        wsClient->close();
+        wsClient->deleteLater();
+        wsClient = nullptr;
+    }
+    
+    if (rest_session_) {
+        rest_session_->deleteLater();
+        rest_session_ = nullptr;
+    }
+}
+
 Willump& GetWillumpService() {
   return Willump::getInstance();
 }
