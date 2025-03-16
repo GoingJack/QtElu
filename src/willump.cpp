@@ -57,13 +57,7 @@ bool Willump::initPortAuth(bool is_retry) {
   if (lcu_pid_ == "-1") {
     qDebug() << "Couldn't find LCUx process yet. Re-searching process list...";
     if (!is_retry) {
-      QTimer* rearch_timer = new QTimer(this);
-      rearch_timer->setInterval(3000);
-      connect(rearch_timer, &QTimer::timeout, this,
-              [=]() { initPortAuth(true); });
-      rearch_timer->start();
     }
-
     return false;
   }
   process_args_ = processCommandLine(getProcessCommandLine(lcu_pid_));
@@ -76,7 +70,10 @@ bool Willump::initPortAuth(bool is_retry) {
   rest_session_ = new QNetworkAccessManager(this);
 
   emit onPortAuthReady();
-  initWebSocket();
+  if (wsClient == nullptr) {
+    initWebSocket();
+  }
+
   connectToWebSocket();
 
   return true;
@@ -87,9 +84,17 @@ void Willump::initWebSocket() {
   qDebug() << "create websocket!";
   connect(wsClient, &QWebSocket::disconnected, this, [this]() {
     qDebug() << "WebSocket disconnected!!!";
+    retry_count_++;
+    if (retry_count_ >= 5) {
+      emit onMessage(
+          "Please check your openssl library dependencies or program running "
+          "permissions(administrator). And restart the program.");
+      return;
+    }
     initPortAuth();
   });
   connect(wsClient, &QWebSocket::connected, this, [=]() {
+    retry_count_ = 0;
     wsClient->sendTextMessage(
         "[5,\"OnJsonApiEvent_lol-gameflow_v1_session\"]");  // Subscribe to
                                                             // match status

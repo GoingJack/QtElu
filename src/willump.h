@@ -56,6 +56,8 @@ class Willump : public QObject {
   QString authKey;
 
   QNetworkAccessManager* rest_session_;
+
+  int retry_count_ = 0;
 };
 
 Willump& GetWillumpService();
