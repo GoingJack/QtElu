@@ -1,0 +1,103 @@
+name: Windows
+on: 
+  push:
+    paths:
+      - 'src/**'
+      - '.github/workflows/windows.yml'
+  pull_request:
+    paths:
+      - 'src/**'
+      - '.github/workflows/windows.yml' 
+jobs:
+  build:
+    name: Build
+    # windows-latest is windows server 2019 
+    # doc: https://github.com/actions/virtual-environments/blob/main/images/win/Windows2019-Readme.md
+    runs-on: windows-2019
+    strategy:
+      # matrix config
+      matrix:
+        qt-ver: [5.15.2]
+        qt-arch: [win64_msvc2019_64, win32_msvc2019]
+        include:
+          - qt-arch: win64_msvc2019_64
+            msvc-arch: x64
+            qt-arch-install: msvc2019_64
+          - qt-arch: win32_msvc2019
+            msvc-arch: x86
+            qt-arch-install: msvc2019
+    env:
+      target-name: QtElu.exe
+      qt-install-path: ${{ github.workspace }}/${{ matrix.qt-ver }}
+      platform-des: win
+    steps:
+      - name: Cache Qt
+        id: cache-qt
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.qt-install-path }}/${{ matrix.qt-arch-install }}
+          key: ${{ runner.os }}/${{ matrix.qt-ver }}/${{ matrix.qt-arch }}
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4.1.1
+        with:
+          # Version of Qt to install
+          version: ${{ matrix.qt-ver }}
+          # Target platform for build
+          target: desktop
+          # Architecture for Windows
+          arch: ${{ matrix.qt-arch }}
+          cached: ${{ steps.cache-qt.outputs.cache-hit }}
+      # pull code
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      # cmake
+      - name: Setup CMake
+        uses: actions/setup-cmake@v3
+        with:
+          cmake-version: '3.25.0'
+      # msvc build
+      - name: msvc-build
+        id: build
+        shell: cmd
+        run: |
+          call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.msvc-arch }}
+          cmake -S . -B build -G "NMake Makefiles" -DCMAKE_PREFIX_PATH="${{ env.qt-install-path }}/${{ matrix.qt-arch-install }}" -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --config Release
+          echo winSdkDir=%WindowsSdkDir% >> %GITHUB_ENV%
+          echo winSdkVer=%WindowsSdkVersion% >> %GITHUB_ENV%
+          echo vcToolsInstallDir=%VCToolsInstallDir% >> %GITHUB_ENV%
+          echo vcToolsRedistDir=%VCToolsRedistDir% >> %GITHUB_ENV%
+      # get ref
+      - name: Get the version
+        shell: bash
+        id: get-version
+        # ${ GITHUB_REF/refs\/tags\// }
+        run: echo ::set-output name=version::${GITHUB_REF##*/}
+      # package
+      - name: package
+        id: package      
+        env:
+          archiveName: ${{env.target-name}}-${{ env.platform-des }}-${{ matrix.msvc-arch }}-${{ steps.get-version.outputs.version }}       
+        shell: pwsh
+        run: |
+          & scripts\windows-publish.ps1 ${env:archiveName} ${env:target-name}
+          # echo packageName to next step
+           $name = ${env:archiveName}
+           echo "::set-output name=packageName::$name"       
+      # tag search github-Release
+      # upload artifacts          
+      - uses: actions/upload-artifact@v2
+        with:
+          name: ${{ steps.package.outputs.packageName }}
+          path: ${{ steps.package.outputs.packageName }}
+      # tag upload Release
+      - name: uploadRelease
+        if: startsWith(github.event.ref, 'refs/tags/')
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ${{ steps.package.outputs.packageName }}.zip
+          asset_name: ${{ steps.package.outputs.packageName }}.zip
+          tag: ${{ github.ref }}
+          overwrite: true 

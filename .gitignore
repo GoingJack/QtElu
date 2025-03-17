@@ -32,7 +32,7 @@
 *.app
 
 # Output
-src/build/*
+output/*
 
 
 # CMake User File
