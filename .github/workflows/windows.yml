@@ -52,6 +52,7 @@ jobs:
       - name: Download and compile OpenSSL
         shell: cmd
         run: |
+          call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.msvc-arch }}
           curl -L https://github.com/openssl/openssl/releases/download/OpenSSL_1_1_1w/openssl-%OPENSSL_VERSION%.tar.gz -o openssl.tar.gz
           7z x openssl.tar.gz
           7z x openssl.tar
