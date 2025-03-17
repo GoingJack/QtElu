@@ -23,14 +23,19 @@ jobs:
           - qt-arch: win64_msvc2019_64
             msvc-arch: x64
             qt-arch-install: msvc2019_64
+            openssl-arch: VC-WIN64A
+            openssl-suffix: -x64
           - qt-arch: win32_msvc2019
             msvc-arch: x86
             qt-arch-install: msvc2019
+            openssl-arch: VC-WIN32
+            openssl-suffix: ""
     env:
       target-name: QtElu.exe
       package-target-name: QtElu
       qt-install-path: ${{ github.workspace }}/${{ matrix.qt-ver }}
       platform-des: win
+      openssl-version: 1.1.1w
     steps:
       - name: Cache Qt
         id: cache-qt
@@ -38,6 +43,28 @@ jobs:
         with:
           path: ${{ env.qt-install-path }}/${{ matrix.qt-arch-install }}
           key: ${{ runner.os }}/${{ matrix.qt-ver }}/${{ matrix.qt-arch }}
+        # install strawberryperl nasm
+      - name: Install OpenSSL dependencies
+        shell: pwsh
+        run: |
+          choco install -y strawberryperl nasm --no-progress
+
+      - name: Download and compile OpenSSL
+        shell: cmd
+        run: |
+          curl -L https://github.com/openssl/openssl/releases/download/OpenSSL_1_1_1w/openssl-%OPENSSL_VERSION%.tar.gz -o openssl.tar.gz
+          7z x openssl.tar.gz
+          7z x openssl.tar
+
+          cd openssl-%OPENSSL_VERSION%
+          perl Configure %OPENSSL_ARCH% no-asm --prefix="%CD%\dist"
+          nmake
+          nmake install
+        env:
+          OPENSSL_VERSION: ${{ env.openssl-version }}
+          OPENSSL_ARCH: ${{ matrix.openssl-arch }}
+          OPENSSL_SUFFIX: ${{ matrix.openssl-suffix }}
+
       - name: Install Qt
         uses: jurplel/install-qt-action@v4.1.1
         with:
@@ -82,6 +109,10 @@ jobs:
           archiveName: ${{env.package-target-name}}-${{ env.platform-des }}-${{ matrix.msvc-arch }}-${{ steps.get-version.outputs.version }}       
         shell: pwsh
         run: |
+          $opensslPath = "openssl-$env:openssl-version/dist/bin"
+          Copy-Item "$opensslPath/libcrypto-1_1$($env:OPENSSL_SUFFIX).dll" -Destination "${env:archiveName}/"
+          Copy-Item "$opensslPath/libssl-1_1$($env:OPENSSL_SUFFIX).dll" -Destination "${env:archiveName}/"
+
           & scripts\windows-publish.ps1 ${env:archiveName} ${env:target-name}
           # echo packageName to next step
            $name = ${env:archiveName}
