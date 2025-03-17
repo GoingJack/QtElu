@@ -79,7 +79,7 @@ jobs:
           
           cd openssl-%OPENSSL_VERSION%
           if not exist dist\include\openssl\opensslv.h (
-            perl Configure VC-WIN64A no-asm --prefix=%CD%\dist
+            perl Configure %OPENSSL_ARCH% no-asm --prefix="%CD%\dist"
             nmake
             nmake install
           )
