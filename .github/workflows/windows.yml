@@ -53,7 +53,7 @@ jobs:
           fetch-depth: 0
       # cmake
       - name: Setup CMake
-        uses: actions/setup-cmake@v3
+        uses: jwlawson/actions-setup-cmake@v2
         with:
           cmake-version: '3.25.0'
       # msvc build
