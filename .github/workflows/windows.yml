@@ -33,33 +33,15 @@ jobs:
     env:
       target-name: QtElu.exe
       package-target-name: QtElu
-      qt-install-path: ${{ github.workspace }}/${{ matrix.qt-ver }}
+      qt-install-path: ${{ github.workspace }}/qt-${{ matrix.qt-ver }}-${{ matrix.qt-arch }}  # example：qt-5.15.2-win64_msvc2019_64
       platform-des: win
       openssl-version: 1.1.1w
-      OPENSSL_VERSION: ${{ env.openssl-version }}
-      OPENSSL_ARCH: ${{ matrix.openssl-arch }}
-      OPENSSL_SUFFIX: ${{ matrix.openssl-suffix }}
+      openssl-build-dir: openssl-1.1.1w-${{ matrix.openssl-arch }} 
     steps:
-      - name: Cache Qt
-        id: cache-qt
-        uses: actions/cache@v4
+      # pull code need pull first, because this step will clear the workspace
+      - uses: actions/checkout@v2
         with:
-          path: ${{ env.qt-install-path }}/${{ matrix.qt-arch-install }}
-          key: ${{ runner.os }}/${{ matrix.qt-ver }}/${{ matrix.qt-arch }}
-      
-      - name: Cache OpenSSL build
-        id: cache-openssl
-        uses: actions/cache@v4
-        with:
-          path: |
-            openssl-${{ env.openssl-version }}/dist
-            openssl-${{ env.openssl-version }}/Makefile
-          key: ${{ runner.os }}-openssl-${{ env.openssl-version }}-${{ matrix.openssl-arch }}-${{ hashFiles('openssl.tar.gz') }}
-          restore-keys: |
-              ${{ runner.os }}-openssl-${{ env.openssl-version }}-${{ matrix.openssl-arch }}-
-              ${{ runner.os }}-openssl-${{ env.openssl-version }}-
-        env:
-          openssl-version: ${{ env.openssl-version }}
+          fetch-depth: 0
 
         # install strawberryperl nasm
       - name: Install OpenSSL dependencies
@@ -67,7 +49,15 @@ jobs:
         run: |
           choco install -y strawberryperl nasm --no-progress
 
+      - name: Cache OpenSSL build
+        id: cache-openssl
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.openssl-build-dir }}/dist
+          key: ${{ runner.os }}-openssl-${{ env.openssl-version }}-${{ matrix.openssl-arch }}
+
       - name: Download and compile OpenSSL
+        if: steps.cache-openssl.outputs.cache-hit != 'true'
         shell: cmd
         run: |
           call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.msvc-arch }}
@@ -75,19 +65,33 @@ jobs:
             curl -L https://github.com/openssl/openssl/releases/download/OpenSSL_1_1_1w/openssl-%OPENSSL_VERSION%.tar.gz -o openssl.tar.gz
           )
           
-          if not exist openssl-$OPENSSL_VERSION (
-            7z x openssl.tar.gz
-            7z x openssl.tar
-          )
           
-          cd openssl-%OPENSSL_VERSION%
-          if not exist dist\include\openssl\opensslv.h (
-            perl Configure %OPENSSL_ARCH% no-asm --prefix="%CD%\dist"
-            nmake
-            nmake install
-          )
+          7z x openssl.tar.gz
+          7z x openssl.tar
+          
+          
+          ren openssl-%OPENSSL_VERSION% ${{ env.openssl-build-dir }} 
+          cd ${{ env.openssl-build-dir }}
+
+          
+          perl Configure %OPENSSL_ARCH% no-asm --prefix="%CD%\dist"
+          nmake
+          nmake install
+          
+        env:
+          OPENSSL_VERSION: ${{ env.openssl-version }}
+          OPENSSL_ARCH: ${{ matrix.openssl-arch }}
+          OPENSSL_SUFFIX: ${{ matrix.openssl-suffix }}
+
+      - name: Cache Qt
+        id: cache-qt
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.qt-install-path }}
+          key: ${{ runner.os }}-qt-${{ matrix.qt-ver }}-${{ matrix.qt-arch }}     
 
       - name: Install Qt
+        if: steps.cache-qt.outputs.cache-hit != 'true'
         uses: jurplel/install-qt-action@v4.1.1
         with:
           # Version of Qt to install
@@ -96,11 +100,10 @@ jobs:
           target: desktop
           # Architecture for Windows
           arch: ${{ matrix.qt-arch }}
+          install-dir: ${{ env.qt-install-path }}
+    
           cached: ${{ steps.cache-qt.outputs.cache-hit }}
-      # pull code
-      - uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
+
       # cmake
       - name: Setup CMake
         uses: jwlawson/actions-setup-cmake@v2
@@ -118,23 +121,39 @@ jobs:
           echo winSdkVer=%WindowsSdkVersion% >> %GITHUB_ENV%
           echo vcToolsInstallDir=%VCToolsInstallDir% >> %GITHUB_ENV%
           echo vcToolsRedistDir=%VCToolsRedistDir% >> %GITHUB_ENV%
+
       # get ref
       - name: Get the version
         shell: bash
         id: get-version
         # ${ GITHUB_REF/refs\/tags\// }
         run: echo ::set-output name=version::${GITHUB_REF##*/}
+
       # package
       - name: package
         id: package      
         env:
-          archiveName: ${{env.package-target-name}}-${{ env.platform-des }}-${{ matrix.msvc-arch }}-${{ steps.get-version.outputs.version }}       
+          archiveName: ${{env.package-target-name}}-${{ env.platform-des }}-${{ matrix.msvc-arch }}-${{ steps.get-version.outputs.version }}
+          OPENSSL_SUFFIX: ${{ matrix.openssl-suffix }}
         shell: pwsh
         run: |
-          $opensslPath = "openssl-${env:openssl-version}/dist/bin"
-  
-          $cryptoDll = "libcrypto-1_1${env:OPENSSL_SUFFIX}.dll"
-          $sslDll = "libssl-1_1${env:OPENSSL_SUFFIX}.dll"
+          Write-Host "Current directory: $pwd"
+
+          $opensslPath = "${{ github.workspace }}/${{ env.openssl-build-dir }}/dist/bin"
+          Write-Host "opensslPath path: $opensslPath"
+
+          if (-not (Test-Path $opensslPath)) {
+            Write-Error "OpenSSL bin directory not found: $opensslPath"
+            exit 1
+          }
+
+          Write-Host "Files in opensslPath:"
+          Get-ChildItem $opensslPath -Recurse
+
+          Write-Host "matrix.openssl-suffix is: ${{ matrix.openssl-suffix }}"
+
+          $cryptoDll = "libcrypto-1_1${{ matrix.openssl-suffix }}.dll"
+          $sslDll = "libssl-1_1${{ matrix.openssl-suffix }}.dll"
 
           $cryptoPath = Join-Path $opensslPath $cryptoDll
           $sslPath = Join-Path $opensslPath $sslDll
@@ -151,6 +170,7 @@ jobs:
             exit 1
           }
 
+          New-Item -ItemType Directory "${env:archiveName}/"
 
           Copy-Item $cryptoPath -Destination "${env:archiveName}/"
           Copy-Item $sslPath -Destination "${env:archiveName}/"

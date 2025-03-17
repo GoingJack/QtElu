@@ -10,7 +10,7 @@ Write-Host "scriptDir" $scriptDir
 
 function Main() {
 
-    New-Item -ItemType Directory $archiveName
+    # New-Item -ItemType Directory $archiveName
     # copy exe
     Copy-Item output\$targetName $archiveName\
     # copy dependencies 
