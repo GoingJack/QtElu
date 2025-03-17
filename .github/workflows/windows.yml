@@ -87,7 +87,7 @@ jobs:
            echo "::set-output name=packageName::$name"       
       # tag search github-Release
       # upload artifacts          
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.package.outputs.packageName }}
           path: ${{ steps.package.outputs.packageName }}
