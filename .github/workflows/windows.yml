@@ -43,6 +43,21 @@ jobs:
         with:
           path: ${{ env.qt-install-path }}/${{ matrix.qt-arch-install }}
           key: ${{ runner.os }}/${{ matrix.qt-ver }}/${{ matrix.qt-arch }}
+      
+      - name: Cache OpenSSL build
+        id: cache-openssl
+        uses: actions/cache@v4
+        with:
+          path: |
+            openssl-${{ env.openssl-version }}/dist
+            openssl-${{ env.openssl-version }}/Makefile
+          key: ${{ runner.os }}-openssl-${{ env.openssl-version }}-${{ matrix.openssl-arch }}-${{ hashFiles('openssl.tar.gz') }}
+          restore-keys: |
+              ${{ runner.os }}-openssl-${{ env.openssl-version }}-${{ matrix.openssl-arch }}-
+              ${{ runner.os }}-openssl-${{ env.openssl-version }}-
+        env:
+          openssl-version: ${{ env.openssl-version }}
+
         # install strawberryperl nasm
       - name: Install OpenSSL dependencies
         shell: pwsh
@@ -53,14 +68,22 @@ jobs:
         shell: cmd
         run: |
           call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.msvc-arch }}
-          curl -L https://github.com/openssl/openssl/releases/download/OpenSSL_1_1_1w/openssl-%OPENSSL_VERSION%.tar.gz -o openssl.tar.gz
-          7z x openssl.tar.gz
-          7z x openssl.tar
-
+          if not exist openssl.tar.gz (
+            curl -L https://github.com/openssl/openssl/releases/download/OpenSSL_1_1_1w/openssl-%OPENSSL_VERSION%.tar.gz -o openssl.tar.gz
+          )
+          
+          if not exist openssl-$OPENSSL_VERSION (
+            7z x openssl.tar.gz
+            7z x openssl.tar
+          )
+          
           cd openssl-%OPENSSL_VERSION%
-          perl Configure %OPENSSL_ARCH% no-asm --prefix="%CD%\dist"
-          nmake
-          nmake install
+          if not exist dist\include\openssl\opensslv.h (
+            perl Configure VC-WIN64A no-asm --prefix=%CD%\dist
+            nmake
+            nmake install
+          )
+          
         env:
           OPENSSL_VERSION: ${{ env.openssl-version }}
           OPENSSL_ARCH: ${{ matrix.openssl-arch }}
@@ -110,9 +133,29 @@ jobs:
           archiveName: ${{env.package-target-name}}-${{ env.platform-des }}-${{ matrix.msvc-arch }}-${{ steps.get-version.outputs.version }}       
         shell: pwsh
         run: |
-          $opensslPath = "openssl-$env:openssl-version/dist/bin"
-          Copy-Item "$opensslPath/libcrypto-1_1$($env:OPENSSL_SUFFIX).dll" -Destination "${env:archiveName}/"
-          Copy-Item "$opensslPath/libssl-1_1$($env:OPENSSL_SUFFIX).dll" -Destination "${env:archiveName}/"
+          $opensslPath = "openssl-${env:openssl-version}/dist/bin"
+  
+          $cryptoDll = "libcrypto-1_1${env:OPENSSL_SUFFIX}.dll"
+          $sslDll = "libssl-1_1${env:OPENSSL_SUFFIX}.dll"
+
+          $cryptoPath = Join-Path $opensslPath $cryptoDll
+          $sslPath = Join-Path $opensslPath $sslDll
+
+          if (-not (Test-Path $cryptoPath)) {
+            Write-Error "Missing DLL: $cryptoPath"
+            Get-ChildItem $opensslPath
+            exit 1
+          }
+
+          if (-not (Test-Path $sslPath)) {
+            Write-Error "Missing DLL: $sslPath"
+            Get-ChildItem $opensslPath
+            exit 1
+          }
+
+
+          Copy-Item $cryptoPath -Destination "${env:archiveName}/"
+          Copy-Item $sslPath -Destination "${env:archiveName}/"
 
           & scripts\windows-publish.ps1 ${env:archiveName} ${env:target-name}
           # echo packageName to next step
