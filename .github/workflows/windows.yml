@@ -28,6 +28,7 @@ jobs:
             qt-arch-install: msvc2019
     env:
       target-name: QtElu.exe
+      package-target-name: QtElu
       qt-install-path: ${{ github.workspace }}/${{ matrix.qt-ver }}
       platform-des: win
     steps:
@@ -78,7 +79,7 @@ jobs:
       - name: package
         id: package      
         env:
-          archiveName: ${{env.target-name}}-${{ env.platform-des }}-${{ matrix.msvc-arch }}-${{ steps.get-version.outputs.version }}       
+          archiveName: ${{env.package-target-name}}-${{ env.platform-des }}-${{ matrix.msvc-arch }}-${{ steps.get-version.outputs.version }}       
         shell: pwsh
         run: |
           & scripts\windows-publish.ps1 ${env:archiveName} ${env:target-name}
