@@ -36,6 +36,9 @@ jobs:
       qt-install-path: ${{ github.workspace }}/${{ matrix.qt-ver }}
       platform-des: win
       openssl-version: 1.1.1w
+      OPENSSL_VERSION: ${{ env.openssl-version }}
+      OPENSSL_ARCH: ${{ matrix.openssl-arch }}
+      OPENSSL_SUFFIX: ${{ matrix.openssl-suffix }}
     steps:
       - name: Cache Qt
         id: cache-qt
@@ -83,11 +86,6 @@ jobs:
             nmake
             nmake install
           )
-          
-        env:
-          OPENSSL_VERSION: ${{ env.openssl-version }}
-          OPENSSL_ARCH: ${{ matrix.openssl-arch }}
-          OPENSSL_SUFFIX: ${{ matrix.openssl-suffix }}
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v4.1.1
