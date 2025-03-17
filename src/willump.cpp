@@ -56,8 +56,9 @@ bool Willump::initPortAuth(bool is_retry) {
   lcu_pid_ = findLCUProcessId();
   if (lcu_pid_ == "-1") {
     qDebug() << "Couldn't find LCUx process yet. Re-searching process list...";
-    if (!is_retry) {
-    }
+    emit onMessage(
+        "Couldn't find LCUx process yet. Re-searching process list...");
+    QTimer::singleShot(10000, this, [=]() { initPortAuth(); });
     return false;
   }
   process_args_ = processCommandLine(getProcessCommandLine(lcu_pid_));
