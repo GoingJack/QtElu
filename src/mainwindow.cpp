@@ -9,6 +9,8 @@ MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent), ui(new Ui::MainWindow) {
   ui->setupUi(this);
 
+  setWindowTitle(tr("QtElu"));
+
   lcu_service_thread_.setObjectName("NetWorkThread");
   lcu_service_thread_.start();
   GetWillumpService().moveToThread(&lcu_service_thread_);
