@@ -9,18 +9,18 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-get_filename_component(PARENT_DIR ${CMAKE_SOURCE_DIR} DIRECTORY)
-
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PARENT_DIR}/output)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/output)
 
 find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets WebSockets)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets WebSockets)
 
 set(PROJECT_SOURCES
-        main.cpp
-        mainwindow.cpp
-        mainwindow.h
-        mainwindow.ui
+        src/main.cpp
+        src/mainwindow.cpp
+        src/mainwindow.h
+        src/mainwindow.ui
+        src/willump.h
+        src/willump.cpp
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
@@ -42,7 +42,6 @@ else()
     else()
         add_executable(QtElu
             ${PROJECT_SOURCES}
-            willump.h willump.cpp
         )
     endif()
 endif()
@@ -69,9 +68,9 @@ set_target_properties(QtElu PROPERTIES
 
 include(GNUInstallDirs)
 install(TARGETS QtElu
-    BUNDLE DESTINATION .
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    BUNDLE DESTINATION output/bin
+    LIBRARY DESTINATION output/lib
+    RUNTIME DESTINATION output/bin
 )
 
 if(QT_VERSION_MAJOR EQUAL 6)
