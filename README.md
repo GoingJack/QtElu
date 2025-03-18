@@ -1,5 +1,7 @@
 # QtElu
 
+[简体中文](README_zh.md)
+
 QtElu is a lightweight, open-source League of Legends assistant tool that helps auto-accept ready games.
 
 ## Features
