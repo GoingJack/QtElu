@@ -4,6 +4,12 @@
 
 QtElu is a lightweight, open-source League of Legends assistant tool that helps auto-accept ready games.
 
+## Usage
+
+Simply run the application while League of Legends client is open. When a match is found, QtElu will automatically accept it for you.
+
+![Auto Accept Ready Game](docs/images/auto-accept-ready-game.gif)
+
 ## Features
 
 - Auto-accept matchmaking
